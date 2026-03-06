@@ -4,7 +4,9 @@ on:
   push:
     branches:
       - main  # Trigger when main branch is updated
-  workflow_dispatch:  # Allows manual triggering
+
+permissions:
+  contents: write  # Required to push to gh-pages branch
 
 jobs:
   deploy:
@@ -13,6 +15,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Deploy HTML to gh-pages branch
         run: |
@@ -26,18 +30,19 @@ jobs:
             exit 1
           fi
           
-          # Clone the repository to a temporary directory
-          git clone --branch gh-pages https://github.com/${{ github.repository }}.git gh-pages-deploy
+          # Clone the repository to a temporary directory with authentication
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages-deploy
           
-          # Remove old content (preserve .git, .nojekyll and some files)
+          # Remove old content (preserve .git and .nojekyll)
           cd gh-pages-deploy
+          git checkout gh-pages || git checkout -b gh-pages
           find . -mindepth 1 -maxdepth 1 \
             ! -name '.git' \
             ! -name '.github' \
             ! -name 'README.md' \
             ! -name 'LICENSE' \
-            ! -name '.nojekyll' \
             ! -name '.gitignore' \
+            ! -name '.nojekyll' \
             -exec rm -rf {} +
           
           # Copy new HTML content
@@ -53,6 +58,6 @@ jobs:
             echo "No changes to deploy"
           else
             git commit -m "Deploy documentation (source commit: ${{ github.sha }})"
-            git push origin gh-pages
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages
             echo "Successfully deployed to gh-pages!"
           fi
